@@ -21,21 +21,15 @@ def split_data(x: pl.DataFrame, y: pl.DataFrame, test_size=0.2):
     return x_train, x_test, y_train, y_test
 
 def plot_correlation(df: pl.DataFrame):
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(16, 15))
     sns.heatmap(
         df.select(cs.numeric()).corr(), 
         annot=True, 
         fmt='.2f', 
         linewidths=0.5, 
         center=0, 
-        cmap=sns.cubehelix_palette(
-            start=.5, 
-            rot=-.5, 
-            dark=0.1, 
-            light=1.5, 
-            hue=1,
-            as_cmap=True
-            )
+        cmap=sns.color_palette('RdBu', n_colors=15, as_cmap=True),
+        robust=True
     )
     plt.title("Feature Correlation Matrix")
     plt.show()
