@@ -23,7 +23,7 @@ def split_data(x: pl.DataFrame, y: pl.DataFrame, test_size=0.2):
 def plot_correlation(df: pl.DataFrame):
     plt.figure(figsize=(8, 6))
     sns.heatmap(
-        df.select(cs.contains('p')).corr(), 
+        df.select(cs.numeric()).corr(), 
         annot=True, 
         fmt='.2f', 
         linewidths=0.5, 
