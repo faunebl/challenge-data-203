@@ -10,7 +10,7 @@ Taken from the [Challenge Data website](https://challengedata.ens.fr/participant
 Download the data from the link above after registering for the challenge, then put them in a folder called "data". 
 To visualize a dataframe, use : 
 
-```
+```python
 from utils import PathsData, import_data
 df = import_data(PathsData.X_TEST.value)
 df.describe()
