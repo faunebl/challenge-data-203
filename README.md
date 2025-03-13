@@ -15,3 +15,13 @@ from utils import PathsData, import_data
 df = import_data(PathsData.X_TEST.value)
 df.describe()
 ```
+
+### Splitting data 
+We can split the data into test and train using :
+
+```python
+from utils import split_data 
+x = import_data(PathsData.X_TRAIN.value)
+y = import_data(PathsData.Y_TRAIN.value)
+x_train, x_test, y_train, y_test = split_data(x=x, y=y)
+```
