@@ -24,50 +24,45 @@ class FeaturesFrame(pl.DataFrame):
             nan_to_null=nan_to_null,
         )
 
-    @classmethod
-    def add_feature_interactions(cls):
-        return cls.with_columns(
+    def add_feature_interactions(self):
+        return self.with_columns(
             [
                 (pl.col(a) * pl.col(b)).alias(f"{a}_{b}_multiplied")
-                for a, b in itertools.combinations(cls.select(cs.numeric()).columns, 2)
+                for a, b in itertools.combinations(self.select(cs.numeric()).columns, 2)
             ]
         )
 
-    @classmethod
-    def add_feature_log(cls):
-        return cls.with_columns(
+    def add_feature_log(self):
+        return self.with_columns(
             [
                 pl.when(pl.col(c) > 0)
                 .then(pl.col(c).log())
                 .otherwise(None)
                 .alias(f"{c}_log")
-                for c in cls.select(cs.numeric()).columns
+                for c in self.select(cs.numeric()).columns
             ]
         )
 
-    @classmethod
-    def add_feature_square(cls):
-        return cls.with_columns(
-            [pl.col(c).pow(2).alias(f"{c}_square") for c in cls.select(cs.numeric()).columns]
+    def add_feature_square(self):
+        return self.with_columns(
+            [pl.col(c).pow(2).alias(f"{c}_square") for c in self.select(cs.numeric()).columns]
         )
     
-    @classmethod
-    def add_feature_sqrt(cls):
-        return cls.with_columns(
-            [pl.col(c).sqrt().alias(f"{c}_square") for c in cls.select(cs.numeric()).columns]
+    def add_feature_sqrt(self):
+        return self.with_columns(
+            [pl.col(c).sqrt().alias(f"{c}_square") for c in self.select(cs.numeric()).columns]
         )
 
-    @classmethod
-    def optimize_categorical(cls):
-        return cls.with_columns(
-            [
-                pl.col(c).cast(pl.Categorical).alias(c)
-                for c in cls.select(cs.string()).columns
-            ]
-        )
+    # @classmethod
+    # def optimize_categorical(self):
+    #     return self.with_columns(
+    #         [
+    #             pl.col(c).cast(pl.Categorical).alias(c)
+    #             for c in self.select(cs.string()).columns
+    #         ]
+    #     )
 
-    @classmethod
-    def encode_one_hot(cls):
-        for col in cls.select(cs.string()).columns:
-            cls = cls.with_columns(pl.select(col).to_dummies(prefix=col)).drop(col)
-        return cls
+    def encode_one_hot(self):
+        for col in self.select(cs.string()).columns:
+            self = self.with_columns(pl.select(col).to_dummies(prefix=col)).drop(col)
+        return self
