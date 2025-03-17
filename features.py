@@ -1,6 +1,7 @@
 import polars as pl
 import polars.selectors as cs
 import itertools
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 class FeaturesFrame(pl.DataFrame):
     def __init__(
@@ -50,19 +51,22 @@ class FeaturesFrame(pl.DataFrame):
     
     def add_feature_sqrt(self):
         return type(self)(self.with_columns(
-            [pl.col(c).sqrt().alias(f"{c}_square") for c in self.select(cs.numeric()).columns]
+            [pl.col(c).sqrt().alias(f"{c}_sqrt") for c in self.select(cs.numeric()).columns]
         ))
 
-    # @classmethod
-    # def optimize_categorical(self):
-    #     return self.with_columns(
-    #         [
-    #             pl.col(c).cast(pl.Categorical).alias(c)
-    #             for c in self.select(cs.string()).columns
-    #         ]
-    #     )
 
     def encode_one_hot(self):
-        for col in self.select(cs.string()).columns:
-            self = self.with_columns(pl.select(col).to_dummies(prefix=col)).drop(col)
-        return type(self)(self)
+        string_cols = self.select(cs.string()).columns
+        if not string_cols:
+            return type(self)(self)
+
+        ohe = OneHotEncoder(handle_unknown='ignore')
+        encoded_array = ohe.fit_transform(self.to_pandas()[string_cols])
+        encoded_feature_names = ohe.get_feature_names_out(string_cols)
+        encoded_df = pl.DataFrame(
+            {
+                name: encoded_array[:, i] for i, name in enumerate(encoded_feature_names)
+            }
+        )
+
+        return type(self)(encoded_df)
