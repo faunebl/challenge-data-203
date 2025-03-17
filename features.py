@@ -1,7 +1,17 @@
+from typing import Literal
 import polars as pl
 import polars.selectors as cs
 import itertools
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+from sklearn.preprocessing import LabelEncoder
+import numpy as np
+
+class EnhancedLabelEncoder(LabelEncoder): #adding support for unseen labels
+    def transform(self, y):
+        y = np.array(y)
+        mapping = {label: index for index, label in enumerate(self.classes_)}
+        return np.array([mapping.get(item, -1) for item in y]) #we choose -1 as a value for all unseen labels -> use None ?
 
 class FeaturesFrame(pl.DataFrame):
     def __init__(
@@ -54,19 +64,52 @@ class FeaturesFrame(pl.DataFrame):
             [pl.col(c).sqrt().alias(f"{c}_sqrt") for c in self.select(cs.numeric()).columns]
         ))
 
+    def encode_label(self):
+        """!!! Only works with the initial x_train data (with date as str), do not use twice in a row
 
-    def encode_one_hot(self):
-        string_cols = self.select(cs.string()).columns
-        if not string_cols:
-            return type(self)(self)
-
-        ohe = OneHotEncoder(handle_unknown='ignore')
-        encoded_array = ohe.fit_transform(self.to_pandas()[string_cols])
-        encoded_feature_names = ohe.get_feature_names_out(string_cols)
-        encoded_df = pl.DataFrame(
-            {
-                name: encoded_array[:, i] for i, name in enumerate(encoded_feature_names)
-            }
+        Returns:
+            FeaturesFrame: dataframe 
+        """        
+        self = (
+            self
+            .with_columns(pl.col('date').str.to_date("%Y-%m-%d"))
+            .with_columns(
+                pl.col('date').dt.weekday().alias('weekday'),
+                # pl.col('date').dt.year().alias('year'), #! useless: only 2023
+                pl.col('date').dt.month().alias('month'),
+                pl.col('date').dt.day().alias('day')
+            )
         )
+        dict_string = self.select(cs.string()).to_dict(as_series=False)
+        return type(self)(   
+            self
+            .with_columns(
+                encoded_train = LabelEncoder().fit_transform(dict_string['train']),
+                encoded_gare = LabelEncoder().fit_transform(dict_string['gare'])
+            )
+            .drop(cs.string(), cs.date())
 
-        return type(self)(encoded_df)
+        )
+    
+    def scale_standard(self, set: Literal['train', 'test'] = 'train', train_scaler: StandardScaler = None):
+        if set == 'test' and train_scaler is None:
+            raise Exception(
+                """
+                Please compute the standard scaler first by using StandardScaler().fit(df.to_numpy()) where df is the train set.
+                You can also run this function on the train set, it will return a tuple with (scaler, df).
+                """
+            )
+        
+        if set == 'train':
+            scaler = StandardScaler().fit(self.to_numpy())
+            return (scaler, type(self)(
+                pl.DataFrame(
+                    data = dict(zip(self.columns, scaler.transform(self.to_numpy()).transpose() )) 
+                )
+            ))
+        else:
+            return type(self)(
+                pl.DataFrame(
+                    data = dict(zip(self.columns, train_scaler.transform(self.to_numpy()).transpose() )) #! scaler fit que sur train 
+                )
+            )
