@@ -3,11 +3,9 @@ import polars as pl
 import polars.selectors as cs
 import itertools
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-
-from sklearn.preprocessing import LabelEncoder
 import numpy as np
 
-class EnhancedLabelEncoder(LabelEncoder): #adding support for unseen labels
+class EnhancedLabelEncoder(LabelEncoder): #adding support for unseen labels #! to use later
     def transform(self, y):
         y = np.array(y)
         mapping = {label: index for index, label in enumerate(self.classes_)}
@@ -70,7 +68,7 @@ class FeaturesFrame(pl.DataFrame):
         Returns:
             FeaturesFrame: dataframe 
         """        
-        self = (
+        self = type(self)(
             self
             .with_columns(pl.col('date').str.to_date("%Y-%m-%d"))
             .with_columns(
@@ -95,7 +93,7 @@ class FeaturesFrame(pl.DataFrame):
         if set == 'test' and train_scaler is None:
             raise Exception(
                 """
-                Please compute the standard scaler first by using StandardScaler().fit(df.to_numpy()) where df is the train set.
+                Please compute the standard scaler first by using StandardScaler().fit(df.to_numpy()) where df is the train set. \n
                 You can also run this function on the train set, it will return a tuple with (scaler, df).
                 """
             )
