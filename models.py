@@ -11,9 +11,10 @@ from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import GridSearchCV, cross_val_score
 
-# import optuna
+import optuna
+import numpy as np
 import dask
 from dask.distributed import Client
 from joblib import parallel_backend
@@ -215,12 +216,12 @@ class Model:
         logger.warning(f"{'---------' * 10}")
         logger.warning("Starting GridSearchCV.")
         try:
-            # with parallel_backend("dask"):
-            search = GridSearchCV(self.model, param_grid, cv=cv, verbose=3)
-            search.fit(X_train, y_train)
-            for i, params in enumerate(search.cv_results_["params"]):
-                mean_score = search.cv_results_["mean_test_score"][i]
-                logger.info(f"GridSearch Iteration {i+1}: {params} -> Score: {mean_score:.4f}")
+            with parallel_backend("dask"):
+                search = GridSearchCV(self.model, param_grid, cv=cv, verbose=3)
+                search.fit(X_train, y_train)
+                for i, params in enumerate(search.cv_results_["params"]):
+                    mean_score = search.cv_results_["mean_test_score"][i]
+                    logger.info(f"GridSearch Iteration {i+1}: {params} -> Score: {mean_score:.4f}")
 
             self.model = search.best_estimator_
             logger.info(f"Grid Search completed. Best parameters: {search.best_params_}")
@@ -229,35 +230,35 @@ class Model:
             logger.error(f"Error during Grid Search: {e}")
             logger.warning(f"{'---' * 10}")
 
-    # def optimize_hyperparams_optuna(self, X_train, y_train):
-    #     logger.info(f"Starting Optuna hyperparameter optimization for {self.model_enum}.")
+    def optimize_hyperparams_optuna(self, X_train, y_train):
+        logger.info(f"Starting Optuna hyperparameter optimization for {self.model_enum}.")
 
-    #     def objective(trial):
-    #         try:
-    #             param_grid = ParamGridEnum.get_param_grid(self.model_enum)
-    #             params = {key: getattr(trial, "suggest_categorical")(key, values) if isinstance(values, list) 
-    #                     else getattr(trial, "suggest_loguniform")(key, *values) 
-    #                     if isinstance(values, tuple) and len(values) == 2 else trial.suggest_int(key, *values) 
-    #                     for key, values in param_grid.items()}
+        def objective(trial):
+            try:
+                param_grid = ParamGridEnum.get_param_grid(self.model_enum)
+                params = {key: getattr(trial, "suggest_categorical")(key, values) if isinstance(values, list) 
+                        else getattr(trial, "suggest_loguniform")(key, *values) 
+                        if isinstance(values, tuple) and len(values) == 2 else trial.suggest_int(key, *values) 
+                        for key, values in param_grid.items()}
                 
-    #             model = self.model_enum.__class__(**params)
-    #             score = np.mean(cross_val_score(model, X_train, y_train, cv=3, scoring="neg_mean_squared_error"))
+                model = self.model_enum.__class__(**params)
+                score = np.mean(cross_val_score(model, X_train, y_train, cv=3, scoring="neg_mean_squared_error"))
 
-    #             logger.info(f"Optuna Trial {trial.number}: {params} -> Score: {score:.4f}")
-    #             return score
-    #         except Exception as e:
-    #             logger.error(f"Error during Optuna trial {trial.number}: {e}")
-    #             return float("inf")
+                logger.info(f"Optuna Trial {trial.number}: {params} -> Score: {score:.4f}")
+                return score
+            except Exception as e:
+                logger.error(f"Error during Optuna trial {trial.number}: {e}")
+                return float("inf")
 
-    #     try:
-    #         study = optuna.create_study(direction="maximize")
-    #         study.optimize(objective, n_trials=20)
+        try:
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=20)
 
-    #         logger.info(f"Optuna optimization completed. Best parameters: {study.best_params}")
-    #         self.model = self.model_enum.__class__(**study.best_params)
-    #         self.model.fit(X_train, y_train)
-    #     except Exception as e:
-    #         logger.error(f"Error during Optuna hyperparameter tuning: {e}")
+            logger.info(f"Optuna optimization completed. Best parameters: {study.best_params}")
+            self.model = self.model_enum.__class__(**study.best_params)
+            self.model.fit(X_train, y_train)
+        except Exception as e:
+            logger.error(f"Error during Optuna hyperparameter tuning: {e}")
 
 
 

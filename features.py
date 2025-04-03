@@ -62,7 +62,7 @@ class FeaturesFrame(pl.DataFrame):
             [pl.col(c).sqrt().alias(f"{c}_sqrt") for c in self.select(cs.numeric()).columns]
         ))
 
-    def encode_label(self):
+    def encode_label(self, encoder: Literal['label', 'frequency']):
         """!!! Only works with the initial x_train data (with date as str), do not use twice in a row
 
         Returns:
@@ -79,15 +79,33 @@ class FeaturesFrame(pl.DataFrame):
             )
         )
         dict_string = self.select(cs.string()).to_dict(as_series=False)
-        return type(self)(   
-            self
-            .with_columns(
-                encoded_train = LabelEncoder().fit_transform(dict_string['train']),
-                encoded_gare = LabelEncoder().fit_transform(dict_string['gare'])
+        if encoder == 'label':
+            return type(self)(   
+                self
+                .with_columns(
+                    encoded_train = LabelEncoder().fit_transform(dict_string['train']),
+                    encoded_gare = LabelEncoder().fit_transform(dict_string['gare'])
+                )
+                .drop(cs.string(), cs.date())
             )
-            .drop(cs.string(), cs.date())
-
-        )
+        elif encoder == 'frequency':
+            freqs_train = (
+                self.group_by('train')
+                .len(name='count')
+                .select((pl.col('count') / self.height).alias('freq'), 'train')
+            )
+            self = type(self)(self.join(freqs_train, on='train', how="left"))
+            freqs_gare = (
+                self.group_by('gare')
+                .len(name='count')
+                .select((pl.col('count') / self.height).alias('freq'), 'gare')
+            )
+            self = type(self)(self.join(freqs_train, on='gare', how="left"))
+            return self
+        
+    def remove_outliers(method: Literal['quantile'] = 'quantile'):
+        #! to implement
+        return None
     
     def scale_standard(self, set: Literal['train', 'test'] = 'train', train_scaler: StandardScaler = None):
         if set == 'test' and train_scaler is None:
