@@ -92,20 +92,30 @@ class FeaturesFrame(pl.DataFrame):
             freqs_train = (
                 self.group_by('train')
                 .len(name='count')
-                .select((pl.col('count') / self.height).alias('freq'), 'train')
+                .select((pl.col('count') / self.height).alias('encoded_train'), 'train')
             )
             self = type(self)(self.join(freqs_train, on='train', how="left"))
             freqs_gare = (
                 self.group_by('gare')
                 .len(name='count')
-                .select((pl.col('count') / self.height).alias('freq'), 'gare')
+                .select((pl.col('count') / self.height).alias('encoded_gare'), 'gare')
             )
-            self = type(self)(self.join(freqs_train, on='gare', how="left"))
+            self = type(self)(self.join(freqs_gare, on='gare', how="left"))
             return self
         
-    def remove_outliers(method: Literal['quantile'] = 'quantile'):
-        #! to implement
-        return None
+    def remove_outliers(self, method: Literal['quantile'] = 'quantile', lower_quantile: float = 0.05, upper_quantile: float = 0.95):
+        df_clean = self.clone()
+        # columns = cs.numeric().
+        if method=='quantile':
+            lower_bounds = df_clean.select(cs.numeric().quantile(lower_quantile))
+            upper_bounds = df_clean.select(cs.numeric().quantile(upper_quantile))
+            
+            print(f"lower bounds = {lower_bounds}, upper bounds = {upper_bounds}")
+            
+            df_clean = df_clean.filter((cs.numeric().ge(lower_bounds)) & (cs.numeric().le(upper_bounds)))
+        
+        return type(self)(df_clean)
+
     
     def scale_standard(self, set: Literal['train', 'test'] = 'train', train_scaler: StandardScaler = None):
         if set == 'test' and train_scaler is None:

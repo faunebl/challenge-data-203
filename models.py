@@ -144,7 +144,7 @@ class Model:
             return self._initialize_pytorch_model()
         elif self.params:
             if self.model_enum == ModelEnum.XGBoost:
-                return self.model_enum.__class__.XGBoost.value.set_params(**self.params)
+                return self.model_enum.__class__.XGBoost.value.set_params(self, **self.params)
             return self.model_enum.__class__(**self.params)
         return self.model_enum.value()
 
