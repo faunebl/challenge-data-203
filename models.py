@@ -245,7 +245,7 @@ class Model:
                         for key, values in param_grid.items()}
                 
                 if self.model_enum == ModelEnum.XGBoost:
-                    model = self.model_enum.__class__.XGBoost.value.set_params(self, **self.params)
+                    model = self.model_enum.__class__.XGBoost.value.set_params(self, **params)
                 else:
                     model = self.model_enum.__class__(**params)
                 score = np.mean(cross_val_score(model, X_train, y_train, cv=3, scoring="neg_mean_squared_error"))
