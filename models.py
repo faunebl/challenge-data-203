@@ -1,7 +1,7 @@
 import logging
 import time
 from enum import Enum
-from tqdm import tqdm
+# from tqdm import tqdm
 # import numpy as np
 
 from sklearn.linear_model import LinearRegression, Ridge, Lasso, ElasticNet
@@ -226,12 +226,15 @@ class Model:
             self.model = search.best_estimator_
             logger.info(f"Grid Search completed. Best parameters: {search.best_params_}")
             logger.warning(f"{'---' * 10}")
+            return search.best_params_
         except Exception as e:
             logger.error(f"Error during Grid Search: {e}")
             logger.warning(f"{'---' * 10}")
 
     def optimize_hyperparams_optuna(self, X_train, y_train):
+        logger.warning(f"{'---' * 10}")
         logger.info(f"Starting Optuna hyperparameter optimization for {self.model_enum}.")
+        logger.warning(f"{'---' * 10}")
 
         def objective(trial):
             try:
@@ -241,13 +244,17 @@ class Model:
                         if isinstance(values, tuple) and len(values) == 2 else trial.suggest_int(key, *values) 
                         for key, values in param_grid.items()}
                 
-                model = self.model_enum.__class__(**params)
+                if self.model_enum == ModelEnum.XGBoost:
+                    model = self.model_enum.__class__.XGBoost.value.set_params(self, **self.params)
+                else:
+                    model = self.model_enum.__class__(**params)
                 score = np.mean(cross_val_score(model, X_train, y_train, cv=3, scoring="neg_mean_squared_error"))
 
                 logger.info(f"Optuna Trial {trial.number}: {params} -> Score: {score:.4f}")
                 return score
             except Exception as e:
                 logger.error(f"Error during Optuna trial {trial.number}: {e}")
+                logger.warning(f"{'---' * 10}")
                 return float("inf")
 
         try:
@@ -255,8 +262,10 @@ class Model:
             study.optimize(objective, n_trials=20)
 
             logger.info(f"Optuna optimization completed. Best parameters: {study.best_params}")
+            logger.warning(f"{'---' * 10}")
             self.model = self.model_enum.__class__(**study.best_params)
             self.model.fit(X_train, y_train)
+            return study.best_params
         except Exception as e:
             logger.error(f"Error during Optuna hyperparameter tuning: {e}")
 

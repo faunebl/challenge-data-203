@@ -13,11 +13,6 @@ def import_data(path: PathsData) -> pl.DataFrame:
     return pl.read_csv(path).drop(cs.contains("Unnamed"), "")
 
 def split_data(x: pl.DataFrame, y: pl.DataFrame, test_size=0.2):
-    #remove outliers:
-    x = x.with_columns(y).filter(pl.col('p0q0').ge(pl.col('p0q0').quantile(0.05)) & pl.col('p0q0').le(pl.col('p0q0').quantile(0.95)))
-    y = x.select('p0q0')
-    x = x.drop('p0q0')
-    # split
     split_index = int(x.height * (1 - test_size))
     x_train = x[:split_index]
     x_test = x[split_index:]
